@@ -1,0 +1,34 @@
+import discord
+from discord.ext import commands
+import time
+
+class StatusPresence(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+        self.start_time = int(time.time())
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        start_timestamp = self.start_time * 1000
+
+        activity = discord.Activity(
+            name="Horizon Project",
+            type=discord.ActivityType.playing,
+            details="Действует",
+            state="Сражается за Horizon clan, за честь!",
+            timestamps={
+                "start": start_timestamp
+            },
+            assets={
+                "large_image": "horizon_logo",
+                "large_text": "HORIZON clan - дружная семья",
+                "small_image": "bot_avatar",
+                "small_text": "Horizon Project v1.5.0"
+            }
+        )
+        
+        await self.bot.change_presence(activity=activity)
+        print("[+] Rich Presence установлен с таймером и ассетами!")
+
+async def setup(bot):
+    await bot.add_cog(StatusPresence(bot))
