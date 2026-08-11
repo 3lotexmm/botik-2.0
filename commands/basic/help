@@ -1,0 +1,66 @@
+import discord
+from discord import app_commands
+from discord.ext import commands
+
+class Help(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+    @app_commands.command(name="help", description="Справка по основным командам")
+    async def slash_help(self, interaction: discord.Interaction):
+        embed = discord.Embed(
+            title="📜 Помощь по командам",
+            description="Ниже перечислены основные команды.\nДля просмотра полного каталога используйте **`/commands`**.",
+            color=0x2ecc71
+        )
+        embed.add_field(
+            name="🟢 Основные",
+            value=(
+                "`/ping` — Проверить задержку бота.\n"
+                "`/stats` — Показать статистику системы.\n"
+                "`/info` — Информация о боте.\n"
+                "`/help` — Эта справка."
+            ),
+            inline=False
+        )
+        embed.add_field(
+            name="⚙️ Управление",
+            value=(
+                "`/shutdown` — Выключить бота (Админ).\n"
+                "`/commands` — Полный интерактивный каталог команд."
+            ),
+            inline=False
+        )
+        embed.set_footer(text=f"Запросил {interaction.user.name}")
+        await interaction.response.send_message(embed=embed)
+
+    @commands.command(name="help")
+    async def text_help(self, ctx):
+        embed = discord.Embed(
+            title="📜 Помощь по командам",
+            description="Ниже перечислены основные команды.\nДля просмотра полного каталога используйте **`/commands`**.",
+            color=0x2ecc71
+        )
+        embed.add_field(
+            name="🟢 Основные",
+            value=(
+                "`/ping` — Проверить задержку бота.\n"
+                "`/stats` — Показать статистику системы.\n"
+                "`/info` — Информация о боте.\n"
+                "`/help` — Эта справка."
+            ),
+            inline=False
+        )
+        embed.add_field(
+            name="⚙️ Управление",
+            value=(
+                "`/shutdown` — Выключить бота (Админ).\n"
+                "`/commands` — Полный интерактивный каталог команд."
+            ),
+            inline=False
+        )
+        embed.set_footer(text=f"Запросил {ctx.author.name}")
+        await ctx.send(embed=embed)
+
+async def setup(bot):
+    await bot.add_cog(Help(bot))
