@@ -1,0 +1,44 @@
+import discord
+from discord import app_commands
+from discord.ext import commands
+import asyncio
+import os
+
+class Admin(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+    @app_commands.command(name="shutdown", description="Полностью выключить бота и закрыть консоль")
+    @app_commands.default_permissions(administrator=True)
+    async def slash_shutdown(self, interaction: discord.Interaction):
+        embed = discord.Embed(
+            title="🛑 Выключение бота...",
+            description="Бот выключается через 2 секунды.",
+            color=0xe74c3c
+        )
+        await interaction.response.send_message(embed=embed)
+
+        await asyncio.sleep(2)
+
+        await self.bot.close()
+        await asyncio.sleep(1)
+        os.system("taskkill /F /IM python.exe")
+
+    @commands.command(name="shutdown")
+    @commands.has_permissions(administrator=True)
+    async def text_shutdown(self, ctx):
+        embed = discord.Embed(
+            title="🛑 Выключение бота...",
+            description="Бот выключается через 2 секунды.",
+            color=0xe74c3c
+        )
+        await ctx.send(embed=embed)
+
+        await asyncio.sleep(2)
+
+        await self.bot.close()
+        await asyncio.sleep(1)
+        os.system("taskkill /F /IM python.exe")
+
+async def setup(bot):
+    await bot.add_cog(Admin(bot))
