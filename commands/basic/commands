@@ -1,0 +1,132 @@
+import discord
+from discord import app_commands
+from discord.ext import commands
+
+class Commands(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+    @app_commands.command(name="commands", description="Открыть полный каталог команд")
+    async def slash_commands(self, interaction: discord.Interaction):
+        embed = discord.Embed(
+            title="📂 Каталог команд PROJECT Bot",
+            description="Выберите категорию из списка ниже.\nВ каждой категории команды сопровождены описанием.",
+            color=0x2ecc71
+        )
+        embed.set_footer(text="PROJECT Bot v1.5.0")
+        await interaction.response.send_message(embed=embed, view=CommandsCatalog(self.bot))
+
+    @commands.command(name="commands")
+    async def text_commands(self, ctx):
+        embed = discord.Embed(
+            title="📂 Каталог команд PROJECT Bot",
+            description="Выберите категорию из списка ниже.\nВ каждой категории команды сопровождены описанием.",
+            color=0x2ecc71
+        )
+        embed.set_footer(text="PROJECT Bot v1.5.0")
+        await ctx.send(embed=embed, view=CommandsCatalog(self.bot))
+
+async def setup(bot):
+    await bot.add_cog(Commands(bot))
+
+# ==========================================================
+# ИНТЕРАКТИВНЫЙ КАТАЛОГ КОМАНД
+# ==========================================================
+class CommandsCatalog(discord.ui.View):
+    def __init__(self, bot):
+        super().__init__(timeout=120)
+        self.bot = bot
+        self.current_category = None
+
+    def get_commands_by_category(self, category_name):
+        result = []
+        
+        def add_cmd(name, desc):
+            result.append(f"**`/{name}`** — {desc}")
+
+        for cmd in self.bot.tree.get_commands():
+            if category_name == "🟢 Общее":
+                if cmd.name in ["ping", "stats", "info", "help", "commands", "menu"]:
+                    add_cmd(cmd.name, cmd.description)
+            elif category_name == "🛠️ Администрирование":
+                if cmd.name in ["shutdown", "setup-ticket", "restart-ticket", "remove-ticket", "ticket-panel", "adduser", "setup-logs", "remove-logs"]:
+                    add_cmd(cmd.name, cmd.description)
+            elif category_name == "🎫 Тикеты":
+                if cmd.name in ["setup-ticket", "remove-ticket", "restart-ticket", "ticket-panel", "adduser", "setup-logs", "remove-logs"]:
+                    add_cmd(cmd.name, cmd.description)
+            elif category_name == "📊 Логи":
+                if cmd.name in ["set-log", "reset-log"]:
+                    add_cmd(cmd.name, cmd.description)
+            elif category_name == "📦 Прочее":
+                if cmd.name not in ["ping", "stats", "info", "help", "commands", "menu", "shutdown", "setup-ticket", "remove-ticket", "restart-ticket", "ticket-panel", "adduser", "setup-logs", "remove-logs", "set-log", "reset-log"]:
+                    add_cmd(cmd.name, cmd.description)
+
+        return "\n".join(result) if result else "*В этой категории пока нет команд.*"
+
+    @discord.ui.select(
+        placeholder="📂 Выберите категорию команд...",
+        options=[
+            discord.SelectOption(label="🟢 Общее", description="Базовые команды бота", emoji="🟢"),
+            discord.SelectOption(label="🛠️ Администрирование", description="Управление ботом", emoji="🛠️"),
+            discord.SelectOption(label="🎫 Тикеты", description="Система обращений", emoji="🎫"),
+            discord.SelectOption(label="📊 Логи", description="Управление логами", emoji="📊"),
+            discord.SelectOption(label="📦 Прочее", description="Остальные команды", emoji="📦"),
+        ]
+    )
+    async def select_category(self, interaction: discord.Interaction, select: discord.ui.Select):
+        self.current_category = select.values[0]
+        cmds = self.get_commands_by_category(self.current_category)
+        embed = discord.Embed(
+            title=f"📂 **{self.current_category}**",
+            description=cmds,
+            color=0x3498db
+        )
+        embed.set_footer(text="PROJECT Bot v1.5.0")
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="◀️ Назад", style=discord.ButtonStyle.secondary)
+    async def prev_category(self, interaction: discord.Interaction, button: discord.ui.Button):
+        categories = ["🟢 Общее", "🛠️ Администрирование", "🎫 Тикеты", "📊 Логи", "📦 Прочее"]
+        if self.current_category not in categories:
+            await interaction.response.send_message("Сначала выберите категорию.", ephemeral=True)
+            return
+        idx = categories.index(self.current_category)
+        new_idx = (idx - 1) % len(categories)
+        self.current_category = categories[new_idx]
+        cmds = self.get_commands_by_category(self.current_category)
+        embed = discord.Embed(
+            title=f"📂 **{self.current_category}**",
+            description=cmds,
+            color=0x3498db
+        )
+        embed.set_footer(text="PROJECT Bot v1.5.0")
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="Вперёд ▶️", style=discord.ButtonStyle.secondary)
+    async def next_category(self, interaction: discord.Interaction, button: discord.ui.Button):
+        categories = ["🟢 Общее", "🛠️ Администрирование", "🎫 Тикеты", "📊 Логи", "📦 Прочее"]
+        if self.current_category not in categories:
+            await interaction.response.send_message("Сначала выберите категорию.", ephemeral=True)
+            return
+        idx = categories.index(self.current_category)
+        new_idx = (idx + 1) % len(categories)
+        self.current_category = categories[new_idx]
+        cmds = self.get_commands_by_category(self.current_category)
+        embed = discord.Embed(
+            title=f"📂 **{self.current_category}**",
+            description=cmds,
+            color=0x3498db
+        )
+        embed.set_footer(text="PROJECT Bot v1.5.0")
+        await interaction.response.edit_message(embed=embed, view=self)
+
+    @discord.ui.button(label="🔙 Главное меню", style=discord.ButtonStyle.success)
+    async def main_menu(self, interaction: discord.Interaction, button: discord.ui.Button):
+        embed = discord.Embed(
+            title="📂 Каталог команд PROJECT Bot",
+            description="Выберите категорию из списка ниже.\nВ каждой категории команды сопровождены описанием.",
+            color=0x2ecc71
+        )
+        embed.set_footer(text="PROJECT Bot v1.5.0")
+        self.current_category = None
+        await interaction.response.edit_message(embed=embed, view=self)
