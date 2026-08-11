@@ -1,0 +1,54 @@
+import discord
+from discord import app_commands
+from discord.ext import commands
+import time
+import psutil
+
+class Stats(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+    @app_commands.command(name="stats", description="Показать статистику бота")
+    async def slash_stats(self, interaction: discord.Interaction):
+        uptime_seconds = int(time.time() - self.bot.start_time)
+        hours = uptime_seconds // 3600
+        minutes = (uptime_seconds % 3600) // 60
+        seconds = uptime_seconds % 60
+        cpu = psutil.cpu_percent()
+        ram = psutil.virtual_memory()
+
+        embed = discord.Embed(
+            title="📊 Статистика бота",
+            description="Информация о производительности системы.",
+            color=0x2ecc71
+        )
+        embed.add_field(name="⏱️ Время работы", value=f"**{hours:02d}ч {minutes:02d}м {seconds:02d}с**", inline=True)
+        embed.add_field(name="💻 Загрузка CPU", value=f"**{cpu}%**", inline=True)
+        embed.add_field(name="🧠 Использование RAM", value=f"**{ram.used / (1024**2):.2f} MB** / {ram.total / (1024**2):.2f} MB", inline=True)
+        embed.add_field(name="🌐 Задержка", value=f"**{round(self.bot.latency * 1000)} мс**", inline=True)
+        embed.set_footer(text=f"Запросил {interaction.user.name}")
+        await interaction.response.send_message(embed=embed)
+
+    @commands.command(name="stats")
+    async def text_stats(self, ctx):
+        uptime_seconds = int(time.time() - self.bot.start_time)
+        hours = uptime_seconds // 3600
+        minutes = (uptime_seconds % 3600) // 60
+        seconds = uptime_seconds % 60
+        cpu = psutil.cpu_percent()
+        ram = psutil.virtual_memory()
+
+        embed = discord.Embed(
+            title="📊 Статистика бота",
+            description="Информация о производительности системы.",
+            color=0x2ecc71
+        )
+        embed.add_field(name="⏱️ Время работы", value=f"**{hours:02d}ч {minutes:02d}м {seconds:02d}с**", inline=True)
+        embed.add_field(name="💻 Загрузка CPU", value=f"**{cpu}%**", inline=True)
+        embed.add_field(name="🧠 Использование RAM", value=f"**{ram.used / (1024**2):.2f} MB** / {ram.total / (1024**2):.2f} MB", inline=True)
+        embed.add_field(name="🌐 Задержка", value=f"**{round(self.bot.latency * 1000)} мс**", inline=True)
+        embed.set_footer(text=f"Запросил {ctx.author.name}")
+        await ctx.send(embed=embed)
+
+async def setup(bot):
+    await bot.add_cog(Stats(bot))
