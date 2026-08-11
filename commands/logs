@@ -1,0 +1,503 @@
+import discord
+from discord import app_commands
+from discord.ext import commands
+import datetime
+import json
+import os
+import asyncio
+
+CONFIG_FILE = "config.json"
+
+def load_config():
+    if not os.path.exists(CONFIG_FILE):
+        return {"ticket_log_channel": None, "ticket_counter": 1, "user_cooldowns": {}, "log_channels": {}}
+    with open(CONFIG_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
+        if "log_channels" not in data:
+            data["log_channels"] = {}
+        return data
+
+def save_config(config):
+    with open(CONFIG_FILE, "w", encoding="utf-8") as f:
+        json.dump(config, f, indent=4)
+
+class Logs(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+        self.log_channels = load_config().get("log_channels", {})
+
+    # ==========================================================
+    # СЛЕШ-КОМАНДА ДЛЯ НАСТРОЙКИ ЛОГОВ
+    # ==========================================================
+    @app_commands.command(name="set-log", description="Настроить канал для определённого типа логов")
+    @app_commands.default_permissions(administrator=True)
+    async def slash_set_log(self, interaction: discord.Interaction):
+        class LogSelect(discord.ui.Select):
+            def __init__(self):
+                options = [
+                    discord.SelectOption(
+                        label="hellogyyd",
+                        description="Участники: вход, выход, кики, баны, смена ников и ролей",
+                        emoji="👤"
+                    ),
+                    discord.SelectOption(
+                        label="syslog",
+                        description="Сообщения: удаление, редактирование, массовая очистка",
+                        emoji="💬"
+                    ),
+                    discord.SelectOption(
+                        label="orbit",
+                        description="Голосовые: вход, выход, перемещение по каналам",
+                        emoji="🔊"
+                    ),
+                    discord.SelectOption(
+                        label="vault",
+                        description="Сервер: создание/удаление каналов, смена названия/иконки",
+                        emoji="🏛️"
+                    ),
+                ]
+                super().__init__(placeholder="Выберите тип логов...", min_values=1, max_values=1, options=options)
+
+            async def callback(self, interaction: discord.Interaction):
+                selected = self.values[0]
+                
+                embed = discord.Embed(
+                    title="📂 Выбор канала",
+                    description=f"Вы выбрали: **{selected}**.\nТеперь **укажите текстовый канал** в следующем сообщении (например, `#логи-участников`).",
+                    color=0x3498db
+                )
+                await interaction.response.send_message(embed=embed, ephemeral=True)
+
+        class LogView(discord.ui.View):
+            def __init__(self):
+                super().__init__(timeout=60)
+                self.add_item(LogSelect())
+
+        embed = discord.Embed(
+            title="📂 Настройка логов",
+            description="Выберите тип логов из списка ниже, чтобы привязать его к каналу.",
+            color=0x3498db
+        )
+        embed.set_footer(text="Horizon Project Bot v1.0.0")
+        await interaction.response.send_message(embed=embed, view=LogView())
+
+    # ==========================================================
+    # ТЕКСТОВЫЕ КОМАНДЫ ДЛЯ НАСТРОЙКИ
+    # ==========================================================
+    @commands.group(name="set-log", invoke_without_command=True)
+    @commands.has_permissions(administrator=True)
+    async def text_set_log(self, ctx):
+        embed = discord.Embed(
+            title="📂 Настройка логов",
+            description="**Используйте:** `/set-log [название] #канал`\n\n**Доступные названия:**\n"
+                       "• `hellogyyd` — Логи участников (вход/выход/кики/баны)\n"
+                       "• `syslog` — Логи сообщений (удаление/редактирование)\n"
+                       "• `orbit` — Логи голосовых каналов (вход/выход/перемещение)\n"
+                       "• `vault` — Логи сервера (каналы/название/иконка)\n\n"
+                       "**Пример:** `/set-log hellogyyd #логи-участников`",
+            color=0x3498db
+        )
+        embed.set_footer(text="Horizon Project Bot v1.0.0")
+        await ctx.send(embed=embed)
+
+    @text_set_log.command(name="hellogyyd")
+    async def text_set_log_hellogyyd(self, ctx, channel: discord.TextChannel):
+        config = load_config()
+        config["log_channels"]["hellogyyd"] = channel.id
+        save_config(config)
+        self.log_channels = config["log_channels"]
+        embed = discord.Embed(
+            title="✅ Логи настроены",
+            description=f"Логи **hellogyyd** (Участники) отправляются в {channel.mention}.",
+            color=0x2ecc71
+        )
+        await ctx.send(embed=embed)
+
+    @text_set_log.command(name="syslog")
+    async def text_set_log_syslog(self, ctx, channel: discord.TextChannel):
+        config = load_config()
+        config["log_channels"]["syslog"] = channel.id
+        save_config(config)
+        self.log_channels = config["log_channels"]
+        embed = discord.Embed(
+            title="✅ Логи настроены",
+            description=f"Логи **syslog** (Сообщения) отправляются в {channel.mention}.",
+            color=0x2ecc71
+        )
+        await ctx.send(embed=embed)
+
+    @text_set_log.command(name="orbit")
+    async def text_set_log_orbit(self, ctx, channel: discord.TextChannel):
+        config = load_config()
+        config["log_channels"]["orbit"] = channel.id
+        save_config(config)
+        self.log_channels = config["log_channels"]
+        embed = discord.Embed(
+            title="✅ Логи настроены",
+            description=f"Логи **orbit** (Голосовые) отправляются в {channel.mention}.",
+            color=0x2ecc71
+        )
+        await ctx.send(embed=embed)
+
+    @text_set_log.command(name="vault")
+    async def text_set_log_vault(self, ctx, channel: discord.TextChannel):
+        config = load_config()
+        config["log_channels"]["vault"] = channel.id
+        save_config(config)
+        self.log_channels = config["log_channels"]
+        embed = discord.Embed(
+            title="✅ Логи настроены",
+            description=f"Логи **vault** (Сервер) отправляются в {channel.mention}.",
+            color=0x2ecc71
+        )
+        await ctx.send(embed=embed)
+
+    # ==========================================================
+    # НОВЫЕ КОМАНДЫ (которые ты хотел оставить)
+    # ==========================================================
+    @commands.command(name="reload-logs")
+    @commands.has_permissions(administrator=True)
+    async def reload_logs(self, ctx):
+        config = load_config()
+        self.log_channels = config.get("log_channels", {})
+        
+        embed = discord.Embed(
+            title="🔄 Логи перезагружены",
+            description="Настройки логов успешно перезагружены из конфигурации.",
+            color=0x3498db
+        )
+        await ctx.send(embed=embed)
+
+    @commands.command(name="reset-log")
+    @commands.has_permissions(administrator=True)
+    async def reset_log(self, ctx):
+        config = load_config()
+        config["log_channels"] = {}
+        save_config(config)
+        self.log_channels = {}
+        
+        embed = discord.Embed(
+            title="🔄 Настройки логов сброшены",
+            description="Все настройки логов были сброшены.",
+            color=0xe67e22
+        )
+        await ctx.send(embed=embed)
+
+    # ==========================================================
+    # ЛОГИ-ИВЕНТЫ (без изменений)
+    # ==========================================================
+    async def send_log(self, category: str, embed: discord.Embed):
+        channel_id = self.log_channels.get(category)
+        if not channel_id:
+            return
+        channel = self.bot.get_channel(channel_id)
+        if channel:
+            await channel.send(embed=embed)
+
+    @commands.Cog.listener()
+    async def on_member_join(self, member):
+        embed = discord.Embed(
+            title="👋 Участник присоединился к серверу",
+            description=f"**{member.mention}** зашел на сервер.",
+            color=0x2ecc71,
+            timestamp=datetime.datetime.utcnow()
+        )
+        embed.add_field(name="📛 Имя", value=member.name, inline=True)
+        embed.add_field(name="🆔 ID", value=member.id, inline=True)
+        embed.add_field(name="📅 Возраст аккаунта", value=member.created_at.strftime("%d.%m.%Y"), inline=True)
+        embed.add_field(name="🕒 Время вступления", value=member.joined_at.strftime("%d.%m.%Y %H:%M"), inline=True)
+        embed.set_thumbnail(url=member.display_avatar.url)
+        embed.set_footer(text=f"Всего участников: {len(member.guild.members)}")
+        await self.send_log("hellogyyd", embed)
+
+    @commands.Cog.listener()
+    async def on_member_remove(self, member):
+        await asyncio.sleep(2)
+        action_taker = None
+        action_type = "Вышел"
+        reason = "Не указана"
+        
+        try:
+            async for entry in member.guild.audit_logs(limit=10, after=datetime.datetime.utcnow() - datetime.timedelta(seconds=10)):
+                if entry.target.id == member.id:
+                    if entry.action == discord.AuditLogAction.kick:
+                        action_type = "Был кикнут"
+                        action_taker = entry.user
+                        reason = entry.reason or "Причина не указана"
+                        break
+                    elif entry.action == discord.AuditLogAction.ban:
+                        action_type = "Был забанен"
+                        action_taker = entry.user
+                        reason = entry.reason or "Причина не указана"
+                        break
+        except:
+            pass
+
+        if action_taker:
+            embed = discord.Embed(
+                title=f"🛑 Участник {action_type}",
+                description=f"**{member.display_name}** {action_type}.",
+                color=0xe74c3c,
+                timestamp=datetime.datetime.utcnow()
+            )
+            embed.add_field(name="👤 Участник", value=f"{member.mention} ({member.id})", inline=True)
+            embed.add_field(name="⚡ Кто наказал", value=action_taker.mention, inline=True)
+            if reason and reason != "Не указана":
+                embed.add_field(name="📝 Причина", value=reason, inline=False)
+        else:
+            embed = discord.Embed(
+                title="👋 Участник покинул сервер",
+                description=f"**{member.display_name}** вышел с сервера.",
+                color=0xe74c3c,
+                timestamp=datetime.datetime.utcnow()
+            )
+            embed.add_field(name="📛 Имя", value=member.name, inline=True)
+            embed.add_field(name="🆔 ID", value=member.id, inline=True)
+        
+        embed.set_footer(text=f"Всего участников: {len(member.guild.members)}")
+        await self.send_log("hellogyyd", embed)
+
+    @commands.Cog.listener()
+    async def on_user_update(self, before, after):
+        if before.display_name != after.display_name:
+            embed = discord.Embed(
+                title="🔄 Изменение никнейма",
+                description=f"Пользователь **{before.mention}** изменил свой ник.",
+                color=0x3498db,
+                timestamp=datetime.datetime.utcnow()
+            )
+            embed.add_field(name="👤 До", value=before.display_name, inline=True)
+            embed.add_field(name="👤 После", value=after.display_name, inline=True)
+            await self.send_log("hellogyyd", embed)
+
+    @commands.Cog.listener()
+    async def on_member_update(self, before, after):
+        if before.roles != after.roles:
+            added = [r.mention for r in after.roles if r not in before.roles]
+            removed = [r.mention for r in before.roles if r not in after.roles]
+            
+            embed = discord.Embed(
+                title="🛡️ Изменение ролей",
+                description=f"У **{after.mention}** изменились роли.",
+                color=0x9b59b6,
+                timestamp=datetime.datetime.utcnow()
+            )
+            embed.add_field(name="👤 Участник", value=after.mention, inline=True)
+            if added:
+                embed.add_field(name="➕ Добавлены", value=", ".join(added), inline=False)
+            if removed:
+                embed.add_field(name="➖ Удалены", value=", ".join(removed), inline=False)
+            await self.send_log("hellogyyd", embed)
+
+    @commands.Cog.listener()
+    async def on_message_delete(self, message):
+        if message.author.bot:
+            return
+        
+        embed = discord.Embed(
+            title="🗑️ Сообщение удалено",
+            description=f"Сообщение от **{message.author.mention}** было удалено.",
+            color=0xf1c40f,
+            timestamp=datetime.datetime.utcnow()
+        )
+        embed.add_field(name="📝 Сообщение", value=message.content or "**[Вложение/Медиа]**", inline=False)
+        embed.add_field(name="📂 Канал", value=message.channel.mention, inline=True)
+        embed.set_footer(text=f"ID автора: {message.author.id}")
+        await self.send_log("syslog", embed)
+
+    @commands.Cog.listener()
+    async def on_message_edit(self, before, after):
+        if before.author.bot or before.content == after.content:
+            return
+        
+        embed = discord.Embed(
+            title="✏️ Сообщение отредактировано",
+            description=f"**{before.author.mention}** отредактировал сообщение.",
+            color=0xf1c40f,
+            timestamp=datetime.datetime.utcnow()
+        )
+        embed.add_field(name="📂 Канал", value=before.channel.mention, inline=True)
+        embed.add_field(name="📝 До", value=before.content[:1024] or "Пусто", inline=False)
+        embed.add_field(name="📝 После", value=after.content[:1024] or "Пусто", inline=False)
+        embed.add_field(name="🔗 Ссылка", value=f"[Перейти к сообщению]({after.jump_url})", inline=False)
+        embed.set_footer(text=f"ID автора: {before.author.id}")
+        await self.send_log("syslog", embed)
+
+    @commands.Cog.listener()
+    async def on_bulk_message_delete(self, messages):
+        if not messages:
+            return
+        
+        channel = messages[0].channel
+        embed = discord.Embed(
+            title="🧹 Массовое удаление сообщений",
+            description=f"Удалено **{len(messages)}** сообщений в {channel.mention}.",
+            color=0xe74c3c,
+            timestamp=datetime.datetime.utcnow()
+        )
+        await self.send_log("syslog", embed)
+
+    @commands.Cog.listener()
+    async def on_voice_state_update(self, member, before, after):
+        if member.bot:
+            return
+
+        # Игнорируем изменения микрофона/звука
+        if (before.channel == after.channel and 
+            (before.self_mute != after.self_mute or before.self_deaf != after.self_deaf)):
+            return
+
+        embed = discord.Embed(
+            color=0x9b59b6,
+            timestamp=datetime.datetime.utcnow()
+        )
+        embed.add_field(name="👤 Участник", value=member.mention, inline=True)
+
+        moved_by_admin = False
+        moved_by_who = None
+        
+        await asyncio.sleep(1)
+        try:
+            async for entry in member.guild.audit_logs(limit=10, after=datetime.datetime.utcnow() - datetime.timedelta(seconds=10)):
+                if entry.action == discord.AuditLogAction.member_move:
+                    if entry.target.id == member.id:
+                        moved_by_admin = True
+                        moved_by_who = entry.user
+                        break
+        except:
+            pass
+
+        if before.channel is None and after.channel is not None:
+            embed.title = "🔊 Присоединился к голосовому каналу"
+            embed.add_field(name="📂 Канал", value=after.channel.mention, inline=True)
+        elif before.channel is not None and after.channel is None:
+            embed.title = "🔇 Покинул голосовой канал"
+            embed.add_field(name="📂 Канал", value=before.channel.mention, inline=True)
+        elif before.channel != after.channel:
+            if moved_by_admin and moved_by_who:
+                embed.title = "🔄 Перемещён администратором"
+                embed.add_field(name="➡️ Был", value=before.channel.mention, inline=True)
+                embed.add_field(name="⬅️ Стал", value=after.channel.mention, inline=True)
+                embed.add_field(name="⚡ Кто переместил", value=moved_by_who.mention, inline=False)
+            else:
+                embed.title = "🔄 Переместился самостоятельно"
+                embed.add_field(name="➡️ Был", value=before.channel.mention, inline=True)
+                embed.add_field(name="⬅️ Стал", value=after.channel.mention, inline=True)
+
+        await self.send_log("orbit", embed)
+
+    @commands.Cog.listener()
+    async def on_guild_channel_create(self, channel):
+        embed = discord.Embed(
+            title="📂 Канал создан",
+            description=f"На сервере был создан новый канал.",
+            color=0x2ecc71,
+            timestamp=datetime.datetime.utcnow()
+        )
+        embed.add_field(name="📛 Название", value=channel.mention, inline=True)
+        embed.add_field(name="📂 Тип", value="Текстовый" if isinstance(channel, discord.TextChannel) else "Голосовой", inline=True)
+        await self.send_log("vault", embed)
+
+    @commands.Cog.listener()
+    async def on_guild_channel_delete(self, channel):
+        embed = discord.Embed(
+            title="🗑️ Канал удалён",
+            description=f"Канал был удалён с сервера.",
+            color=0xe74c3c,
+            timestamp=datetime.datetime.utcnow()
+        )
+        embed.add_field(name="📛 Название", value=f"`{channel.name}`", inline=True)
+        embed.add_field(name="📂 Тип", value="Текстовый" if isinstance(channel, discord.TextChannel) else "Голосовой", inline=True)
+        await self.send_log("vault", embed)
+
+    @commands.Cog.listener()
+    async def on_guild_channel_update(self, before, after):
+        if before.name != after.name:
+            embed = discord.Embed(
+                title="✏️ Канал переименован",
+                description=f"Канал был переименован.",
+                color=0x3498db,
+                timestamp=datetime.datetime.utcnow()
+            )
+            embed.add_field(name="📛 До", value=before.name, inline=True)
+            embed.add_field(name="📛 После", value=after.name, inline=True)
+            await self.send_log("vault", embed)
+
+    @commands.Cog.listener()
+    async def on_guild_update(self, before, after):
+        if before.name != after.name:
+            embed = discord.Embed(
+                title="🏛️ Сервер переименован",
+                description="Название сервера было изменено.",
+                color=0x3498db,
+                timestamp=datetime.datetime.utcnow()
+            )
+            embed.add_field(name="📛 До", value=before.name, inline=True)
+            embed.add_field(name="📛 После", value=after.name, inline=True)
+            await self.send_log("vault", embed)
+
+        if before.icon != after.icon:
+            embed = discord.Embed(
+                title="🖼️ Иконка сервера обновлена",
+                description="Иконка сервера была изменена.",
+                color=0x3498db,
+                timestamp=datetime.datetime.utcnow()
+            )
+            if after.icon:
+                embed.set_thumbnail(url=after.icon.url)
+            await self.send_log("vault", embed)
+
+    @commands.Cog.listener()
+    async def on_guild_role_create(self, role):
+        embed = discord.Embed(
+            title="🛡️ Создана новая роль",
+            description=f"На сервере была создана новая роль.",
+            color=0x2ecc71,
+            timestamp=datetime.datetime.utcnow()
+        )
+        embed.add_field(name="📛 Название", value=role.name, inline=True)
+        embed.add_field(name="🎨 Цвет", value=str(role.color), inline=True)
+        embed.add_field(name="🆔 ID", value=role.id, inline=True)
+        await self.send_log("vault", embed)
+
+    @commands.Cog.listener()
+    async def on_guild_role_delete(self, role):
+        embed = discord.Embed(
+            title="🛡️ Роль удалена",
+            description=f"Роль была удалена с сервера.",
+            color=0xe74c3c,
+            timestamp=datetime.datetime.utcnow()
+        )
+        embed.add_field(name="📛 Название", value=role.name, inline=True)
+        embed.add_field(name="🎨 Цвет", value=str(role.color), inline=True)
+        embed.add_field(name="🆔 ID", value=role.id, inline=True)
+        await self.send_log("vault", embed)
+
+    @commands.Cog.listener()
+    async def on_guild_role_update(self, before, after):
+        embed = discord.Embed(
+            title="🛡️ Роль обновлена",
+            description=f"Роль была изменена.",
+            color=0x3498db,
+            timestamp=datetime.datetime.utcnow()
+        )
+        
+        changed = False
+        
+        if before.name != after.name:
+            embed.add_field(name="📛 Название", value=f"`{before.name}` → `{after.name}`", inline=False)
+            changed = True
+        
+        if before.color != after.color:
+            embed.add_field(name="🎨 Цвет", value=f"{before.color} → {after.color}", inline=False)
+            changed = True
+        
+        if before.permissions != after.permissions:
+            embed.add_field(name="🔒 Права", value="Были изменены права роли", inline=False)
+            changed = True
+        
+        if changed:
+            await self.send_log("vault", embed)
+
+async def setup(bot):
+    await bot.add_cog(Logs(bot))
