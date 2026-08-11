@@ -1,0 +1,13 @@
+import asyncio
+import sys
+import os
+
+# Вставляем свой токен в файл core.py (Один раз и забываем)
+
+if __name__ == "__main__":
+    try:
+        # Импортируем core.py и запускаем функцию
+        from commands.core import run_bot
+        asyncio.run(run_bot())
+    except KeyboardInterrupt:
+        print("\n[!] Бот остановлен.")
