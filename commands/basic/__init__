@@ -1,0 +1,12 @@
+from .ping import Ping
+from .stats import Stats
+from .info import Info
+from .help import Help
+from .commands import Commands
+
+async def setup(bot):
+    await bot.add_cog(Ping(bot))
+    await bot.add_cog(Stats(bot))
+    await bot.add_cog(Info(bot))
+    await bot.add_cog(Help(bot))
+    await bot.add_cog(Commands(bot))
