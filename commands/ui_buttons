@@ -1,0 +1,89 @@
+import discord
+from discord import app_commands
+from discord.ext import commands
+import time
+import psutil
+
+class UIButtons(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+        self.bot.start_time = time.time()
+
+    # ===== СЛЕШ-ВЕРСИЯ =====
+    @app_commands.command(name="menu", description="Открыть меню с быстрыми кнопками-командами")
+    async def slash_menu(self, interaction: discord.Interaction):
+        embed = discord.Embed(
+            title="📋 Меню быстрых действий",
+            description="Нажмите на кнопку ниже, чтобы выполнить команду.",
+            color=0x3498db
+        )
+        embed.set_footer(text="PROJECT Bot v1.5.0")
+
+        view = QuickMenu(self.bot)
+        await interaction.response.send_message(embed=embed, view=view)
+
+    # ===== ТЕКСТОВАЯ ВЕРСИЯ =====
+    @commands.command(name="menu")
+    async def text_menu(self, ctx):
+        embed = discord.Embed(
+            title="📋 Меню быстрых действий",
+            description="Нажмите на кнопку ниже, чтобы выполнить команду.",
+            color=0x3498db
+        )
+        embed.set_footer(text="PROJECT Bot v1.5.0")
+
+        view = QuickMenu(self.bot)
+        await ctx.send(embed=embed, view=view)
+
+class QuickMenu(discord.ui.View):
+    def __init__(self, bot):
+        super().__init__(timeout=120)
+        self.bot = bot
+
+    @discord.ui.button(label="📊 Статистика", style=discord.ButtonStyle.success, emoji="📊")
+    async def stats_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        uptime = int(time.time() - self.bot.start_time)
+        h = uptime // 3600
+        m = (uptime % 3600) // 60
+        s = uptime % 60
+
+        embed = discord.Embed(
+            title="📊 Статистика системы",
+            color=0x2ecc71
+        )
+        embed.add_field(name="⏱️ Время работы", value=f"{h:02d}ч {m:02d}м {s:02d}с", inline=False)
+        embed.add_field(name="💻 Загрузка CPU", value=f"{psutil.cpu_percent()}%", inline=True)
+        embed.add_field(name="🧠 Использование RAM", value=f"{psutil.virtual_memory().used / (1024**2):.2f} MB", inline=True)
+        embed.set_footer(text=f"Запросил {interaction.user.name}")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @discord.ui.button(label="❓ Помощь", style=discord.ButtonStyle.secondary, emoji="❓")
+    async def help_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        embed = discord.Embed(
+            title="📜 Помощь по командам",
+            description="Ниже перечислены основные команды.\nДля просмотра полного каталога используйте **`/commands`**.",
+            color=0x2ecc71
+        )
+        embed.add_field(
+            name="🟢 Основные",
+            value=(
+                "`/ping` — Проверить задержку бота.\n"
+                "`/stats` — Показать статистику системы.\n"
+                "`/info` — Информация о боте.\n"
+                "`/help` — Эта справка."
+            ),
+            inline=False
+        )
+        embed.add_field(
+            name="⚙️ Управление",
+            value=(
+                "`/shutdown` — Выключить бота (Админ).\n"
+                "`/commands` — Полный интерактивный каталог команд."
+            ),
+            inline=False
+        )
+        embed.set_footer(text=f"Запросил {interaction.user.name}")
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+async def setup(bot):
+    await bot.add_cog(UIButtons(bot))
