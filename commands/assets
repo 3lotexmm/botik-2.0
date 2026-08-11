@@ -1,0 +1,70 @@
+import discord
+from discord import app_commands
+from discord.ext import commands
+import os
+import aiohttp
+
+class Assets(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+        if not os.path.exists("assets"):
+            os.mkdir("assets")
+
+    @app_commands.command(name="save-asset", description="Сохранить картинку в ассеты бота по прямой ссылке")
+    @app_commands.describe(url="Прямая ссылка на картинку (PNG/JPG)", name="Название для сохранения")
+    async def save_asset(self, interaction: discord.Interaction, url: str, name: str):
+        if not name.replace("_", "").isalnum():
+            await interaction.response.send_message("❌ Имя может содержать только буквы, цифры и знак подчёркивания `_`.", ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as resp:
+                    if resp.status != 200:
+                        await interaction.followup.send("❌ Не удалось скачать картинку по ссылке.", ephemeral=True)
+                        return
+                    data = await resp.read()
+
+            file_path = f"assets/{name}.png"
+            with open(file_path, "wb") as f:
+                f.write(data)
+
+            await interaction.followup.send(f"✅ Картинка `{name}` сохранена в ассеты! (Путь: `{file_path}`)", ephemeral=True)
+
+        except Exception as e:
+            await interaction.followup.send(f"❌ Ошибка: {e}", ephemeral=True)
+
+    @app_commands.command(name="list-assets", description="Показать список всех сохранённых картинок")
+    async def list_assets(self, interaction: discord.Interaction):
+        if not os.path.exists("assets"):
+            await interaction.response.send_message("❌ Папка `assets` не найдена.", ephemeral=True)
+            return
+
+        files = os.listdir("assets")
+        if not files:
+            await interaction.response.send_message("📂 В папке `assets` пока нет картинок.", ephemeral=True)
+            return
+
+        file_list = "\n".join([f"🖼️ `{f}`" for f in files])
+        embed = discord.Embed(
+            title="🖼️ Сохранённые ассеты",
+            description=file_list,
+            color=0x3498db
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @app_commands.command(name="delete-asset", description="Удалить сохранённую картинку по имени")
+    @app_commands.describe(name="Название файла (без расширения)")
+    async def delete_asset(self, interaction: discord.Interaction, name: str):
+        file_path = f"assets/{name}.png"
+        if not os.path.exists(file_path):
+            await interaction.response.send_message(f"❌ Картинка `{name}` не найдена.", ephemeral=True)
+            return
+
+        os.remove(file_path)
+        await interaction.response.send_message(f"🗑️ Картинка `{name}` удалена.", ephemeral=True)
+
+async def setup(bot):
+    await bot.add_cog(Assets(bot))
