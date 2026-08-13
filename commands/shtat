@@ -1,0 +1,346 @@
+import discord
+from discord import app_commands
+from discord.ext import commands
+import asyncio
+import datetime
+import os
+
+class Shtat(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+        self.is_active = False
+        self.panel_message = None
+        self.recruitment_channel = None
+
+    # ==========================================================
+    # СЛЕШ-КОМАНДЫ
+    # ==========================================================
+    @app_commands.command(name="setup-shtat", description="Создать панель набора в штат")
+    @app_commands.default_permissions(administrator=True)
+    async def slash_setup_shtat(self, interaction: discord.Interaction):
+        if self.panel_message:
+            try:
+                await self.panel_message.delete()
+            except:
+                pass
+        
+        self.recruitment_channel = interaction.channel
+
+        # 1. ГЛАВНОЕ СООБЩЕНИЕ
+        main_embed = discord.Embed(
+            title="👑 РАСШИРЯЕМ КОМАНДУ УПРАВЛЕНИЯ | Набор Модераторов и Хелперов (17+)",
+            description=(
+                "Всем салют, клан! ✌️\n\n"
+                "Мы подошли к тому моменту, когда текущего состава администрации перестало хватать для полноценного покрытия всех активных часов. Поэтому объявляем официальный набор в управляющую структуру сервера.\n\n"
+                "Нам требуются ответственные люди, которые готовы взять на себя часть нагрузки по поддержанию порядка и помощи сообществу. Возрастной ценз — **17+**.\n\n"
+                "**🛡️ Мы ищем:**\n"
+                "• **Модератор** — Контроль, безопасность, дисциплина.\n"
+                "• **Хелпер** — Адаптация, поддержка, коммуникация.\n\n"
+                "**✅ Требования:**\n"
+                "• Возраст: строго 17+\n"
+                "• Активность: регулярное присутствие на сервере\n"
+                "• Грамотная речь (письменная и устная)\n"
+                "• Стрессоустойчивость\n"
+                "• Наличие микрофона\n\n"
+                "📝 **Ознакомьтесь с анкетой в следующем сообщении.**"
+            ),
+            color=0xf1c40f
+        )
+        main_embed.set_footer(text="Horizon Project • Система набора в штат v1.0")
+
+        # 2. СООБЩЕНИЕ С АНКЕТОЙ (Красиво оформленная, без кодового блока)
+        form_embed = discord.Embed(
+            title="📋 АНКЕТА СОИСКАТЕЛЯ В ШТАТ",
+            description=(
+                "Для подачи заявки скопируйте текст ниже, заполните ответы и отправьте в данный канал.\n\n"
+                "✏️ **1. Ваш Discord (никнейм и тег):**\n"
+                "   _Напишите ваш полный никнейм с тегом._\n\n"
+                "✏️ **2. Ваш возраст (полных лет):**\n"
+                "   _Укажите ваш возраст._\n\n"
+                "✏️ **3. Часовой пояс:**\n"
+                "   _Например: 18:15 или 02:20 (так-же можно уточнить часовой пояс, например: по мск)._\n\n"
+                "✏️ **4. На какую должность вы претендуете?**\n"
+                "   _Выберите: Администратор / Модератор / Хелпер._\n\n"
+                "✏️ **5. Есть ли у вас опыт модерации на других Discord-серверах или форумах?**\n"
+                "   _Если да, опишите где и сколько._\n\n"
+                "✏️ **6. Сколько часов в день вы готовы уделять серверу?**\n"
+                "   _Будьте реалистичны._\n\n"
+                "✏️ **7. В какое время суток вы чаще всего бываете онлайн?**\n"
+                "   _Например: утро/день/вечер/ночь._\n\n"
+                "✏️ **8. Как вы обычно реагируете на грубость или агрессию в свой адрес?**\n"
+                "   _Краткий ответ._"
+            ),
+            color=0x3498db
+        )
+        form_embed.add_field(
+            name="⚡ **СИТУАЦИЯ №1**",
+            value=(
+                "В общий чат заходит пользователь, который явно нарушает правила, но делает это \"на грани\" — так, что формально не придраться. Он провоцирует остальных. **Ваши действия?**"
+            ),
+            inline=False
+        )
+        form_embed.add_field(
+            name="⚡ **СИТУАЦИЯ №2**",
+            value=(
+                "В личку приходит участник, который жалуется на действия другого модера. Он эмоционален и требует \"справедливости\". **Ваши действия в первые 5 минут?**"
+            ),
+            inline=False
+        )
+        form_embed.add_field(
+            name="💡 **Заключительные вопросы**",
+            value=(
+                "✏️ **11. Почему мы должны выбрать именно вас? Что вы можете дать клану?**\n"
+                "✏️ **12. Ваш самый любимый канал на нашем сервере и почему?**"
+            ),
+            inline=False
+        )
+        form_embed.set_footer(text="Horizon Project • Система набора в штат v1.0")
+
+        # 3. СООБЩЕНИЕ С ДЕДЛАЙНОМ
+        deadline_embed = discord.Embed(
+            title="⏳ Дедлайн подачи заявок",
+            description=(
+                "**Дедлайн подачи:** до закрытия вакансий (набор ограничен).\n\n"
+                "Если вы не готовы уделять время серверу регулярно — пожалуйста, воздержитесь от подачи. Мы ищем долгосрочных союзников, а не временных волонтёров.\n\n"
+                "Срок рассмотрения заявок — до 48 часов. С отобранными кандидатами свяжемся для проведения короткого голосового собеседования.\n\n"
+                "По всем вопросам — в личку администрации. Удачи! 🚀"
+            ),
+            color=0xe67e22
+        )
+        deadline_embed.set_footer(text="Horizon Project • Система набора в штат v1.0")
+
+        # Отправляем всё в канал
+        await interaction.response.send_message(embeds=[main_embed, form_embed, deadline_embed], ephemeral=True)
+        self.is_active = True
+
+    @app_commands.command(name="remove-shtat", description="Закрыть набор в штат")
+    @app_commands.default_permissions(administrator=True)
+    async def slash_remove_shtat(self, interaction: discord.Interaction):
+        if not self.is_active:
+            await interaction.response.send_message("❌ Набор уже закрыт или не был создан.", ephemeral=True)
+            return
+        
+        if self.panel_message:
+            try:
+                await self.panel_message.delete()
+            except:
+                pass
+        
+        transcript_lines = []
+        async for msg in interaction.channel.history(limit=1000):
+            if not msg.author.bot:
+                transcript_lines.append(f"[{msg.created_at.strftime('%H:%M:%S')}] {msg.author.display_name}: {msg.content}")
+        
+        transcript_text = "\n".join(transcript_lines[::-1]) if transcript_lines else "Нет сообщений"
+        file_path = f"transcript_shtat_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(f"ТРАНСКРИПТ НАБОРА В ШТАТ\n")
+            f.write("="*40 + "\n\n")
+            f.write(transcript_text)
+
+        log_channel = discord.utils.get(interaction.guild.channels, name="log-shtat")
+        if not log_channel:
+            log_channel = await interaction.guild.create_text_channel("log-shtat")
+            await log_channel.set_permissions(interaction.guild.default_role, read_messages=False, send_messages=False)
+
+        embed = discord.Embed(
+            title="🔒 Набор в штат закрыт",
+            description="Набор персонала завершён. Транскрипт сохранён.",
+            color=0xe74c3c
+        )
+        embed.set_footer(text="Horizon Project • Система набора в штат v1.0")
+        
+        await log_channel.send(embed=embed, file=discord.File(file_path, filename=f"recruitment_log.txt"))
+        os.remove(file_path)
+        
+        self.is_active = False
+        await interaction.response.send_message("✅ Набор закрыт. Транскрипт сохранён.", ephemeral=True)
+
+    @app_commands.command(name="openti-shtat", description="Открыть набор в штат заново")
+    @app_commands.default_permissions(administrator=True)
+    async def slash_openti_shtat(self, interaction: discord.Interaction):
+        if self.is_active:
+            await interaction.response.send_message("❌ Набор уже открыт.", ephemeral=True)
+            return
+        
+        main_embed = discord.Embed(
+            title="👑 РАСШИРЯЕМ КОМАНДУ УПРАВЛЕНИЯ",
+            description="Набор в штат вновь открыт! 🚀",
+            color=0xf1c40f
+        )
+        main_embed.set_footer(text="Horizon Project • Система набора в штат v1.0")
+        
+        self.panel_message = await interaction.response.send_message(embed=main_embed, ephemeral=True)
+        self.is_active = True
+
+    # ==========================================================
+    # ТЕКСТОВЫЕ КОМАНДЫ
+    # ==========================================================
+    @commands.command(name="setup-shtat")
+    @commands.has_permissions(administrator=True)
+    async def text_setup_shtat(self, ctx):
+        if self.panel_message:
+            try:
+                await self.panel_message.delete()
+            except:
+                pass
+        
+        self.recruitment_channel = ctx.channel
+
+        # 1. ГЛАВНОЕ СООБЩЕНИЕ
+        main_embed = discord.Embed(
+            title="👑 РАСШИРЯЕМ КОМАНДУ УПРАВЛЕНИЯ | Набор Модераторов и Хелперов (17+)",
+            description=(
+                "Всем салют, клан! ✌️\n\n"
+                "Мы подошли к тому моменту, когда текущего состава администрации перестало хватать для полноценного покрытия всех активных часов. Поэтому объявляем официальный набор в управляющую структуру сервера.\n\n"
+                "Нам требуются ответственные люди, которые готовы взять на себя часть нагрузки по поддержанию порядка и помощи сообществу. Возрастной ценз — **17+**.\n\n"
+                "**🛡️ На кого мы ищем?**\n"
+                "• **Модератор** — Контроль, безопасность, дисциплина.\n"
+                "• **Хелпер** — Адаптация, поддержка, коммуникация.\n\n"
+                "**✅ Требования:**\n"
+                "• Возраст: строго 17+\n"
+                "• Активность: регулярное присутствие на сервере\n"
+                "• Грамотная речь (письменная и устная)\n"
+                "• Стрессоустойчивость\n"
+                "• Наличие микрофона\n\n"
+                "📝 **Ознакомьтесь с анкетой в следующем сообщении.**"
+            ),
+            color=0xf1c40f
+        )
+        main_embed.set_footer(text="Horizon Project • Система набора в штат v1.0")
+
+        # 2. СООБЩЕНИЕ С АНКЕТОЙ
+        form_embed = discord.Embed(
+            title="📋 АНКЕТА СОИСКАТЕЛЯ В ШТАТ",
+            description=(
+                "Для подачи заявки скопируйте текст ниже, заполните ответы и отправьте в личные сообщения администрации.\n\n"
+                "✏️ **1. Ваш Discord (никнейм и тег):**\n"
+                "   _Напишите ваш полный никнейм с тегом._\n\n"
+                "✏️ **2. Ваш возраст (полных лет):**\n"
+                "   _Укажите ваш возраст._\n\n"
+                "✏️ **3. Ваше местоположение / часовой пояс:**\n"
+                "   _Например: Москва (МСК) или UTC+3._\n\n"
+                "✏️ **4. На какую должность вы претендуете?**\n"
+                "   _Выберите: Модератор / Хелпер._\n\n"
+                "✏️ **5. Есть ли у вас опыт модерации на других Discord-серверах или форумах?**\n"
+                "   _Если да, опишите где и сколько._\n\n"
+                "✏️ **6. Сколько часов в день вы готовы уделять серверу?**\n"
+                "   _Будьте реалистичны._\n\n"
+                "✏️ **7. В какое время суток вы чаще всего бываете онлайн?**\n"
+                "   _Например: утро/день/вечер/ночь по МСК._\n\n"
+                "✏️ **8. Как вы обычно реагируете на грубость или агрессию в свой адрес?**\n"
+                "   _Краткий ответ (1-2 предложения)._"
+            ),
+            color=0x3498db
+        )
+        form_embed.add_field(
+            name="⚡ **СИТУАЦИЯ №1**",
+            value=(
+                "В общий чат приходит пользователь, который явно нарушает правила, но делает это \"на грани\" — так, что формально не придраться. Он провоцирует остальных. **Ваши действия?**"
+            ),
+            inline=False
+        )
+        form_embed.add_field(
+            name="⚡ **СИТУАЦИЯ №2**",
+            value=(
+                "В личку приходит участник, который жалуется на действия другого модера. Он эмоционален и требует \"справедливости\". **Ваши действия в первые 5 минут?**"
+            ),
+            inline=False
+        )
+        form_embed.add_field(
+            name="💡 **Заключительные вопросы**",
+            value=(
+                "✏️ **11. Почему мы должны выбрать именно вас? Что вы можете дать клану?**\n"
+                "✏️ **12. Ваш самый любимый канал на нашем сервере и почему?**"
+            ),
+            inline=False
+        )
+        form_embed.set_footer(text="Horizon Project • Система набора в штат v1.0")
+
+        # 3. СООБЩЕНИЕ С ДЕДЛАЙНОМ
+        deadline_embed = discord.Embed(
+            title="⏳ Дедлайн подачи заявок",
+            description=(
+                "**Дедлайн подачи:** до закрытия вакансий (набор ограничен).\n\n"
+                "Если вы не готовы уделять время серверу регулярно — пожалуйста, воздержитесь от подачи. Мы ищем долгосрочных союзников, а не временных волонтёров.\n\n"
+                "Срок рассмотрения заявок — до 48 часов. С отобранными кандидатами свяжемся для проведения короткого голосового собеседования.\n\n"
+                "По всем вопросам — в личку администрации. Удачи! 🚀"
+            ),
+            color=0xe67e22
+        )
+        deadline_embed.set_footer(text="Horizon Project • Система набора в штат v1.0")
+
+        # Отправляем всё в канал
+        await ctx.send(embeds=[main_embed, form_embed, deadline_embed])
+        self.is_active = True
+        
+        await asyncio.sleep(3)
+        await ctx.message.delete()
+
+    @commands.command(name="remove-shtat")
+    @commands.has_permissions(administrator=True)
+    async def text_remove_shtat(self, ctx):
+        if not self.is_active:
+            await ctx.send("❌ Набор уже закрыт или не был создан.")
+            return
+        
+        if self.panel_message:
+            try:
+                await self.panel_message.delete()
+            except:
+                pass
+        
+        transcript_lines = []
+        async for msg in ctx.channel.history(limit=1000):
+            if not msg.author.bot:
+                transcript_lines.append(f"[{msg.created_at.strftime('%H:%M:%S')}] {msg.author.display_name}: {msg.content}")
+        
+        transcript_text = "\n".join(transcript_lines[::-1]) if transcript_lines else "Нет сообщений"
+        file_path = f"transcript_shtat_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(f"ТРАНСКРИПТ НАБОРА В ШТАТ\n")
+            f.write("="*40 + "\n\n")
+            f.write(transcript_text)
+
+        log_channel = discord.utils.get(ctx.guild.channels, name="log-shtat")
+        if not log_channel:
+            log_channel = await ctx.guild.create_text_channel("log-shtat")
+            await log_channel.set_permissions(ctx.guild.default_role, read_messages=False, send_messages=False)
+
+        embed = discord.Embed(
+            title="🔒 Набор в штат закрыт",
+            description="Набор персонала завершён. Транскрипт сохранён.",
+            color=0xe74c3c
+        )
+        embed.set_footer(text="Horizon Project • Система набора в штат v1.0")
+        
+        await log_channel.send(embed=embed, file=discord.File(file_path, filename=f"recruitment_log.txt"))
+        os.remove(file_path)
+        
+        self.is_active = False
+        
+        await asyncio.sleep(3)
+        await ctx.message.delete()
+
+    @commands.command(name="openti-shtat")
+    @commands.has_permissions(administrator=True)
+    async def text_openti_shtat(self, ctx):
+        if self.is_active:
+            await ctx.send("❌ Набор уже открыт.")
+            return
+        
+        main_embed = discord.Embed(
+            title="👑 РАСШИРЯЕМ КОМАНДУ УПРАВЛЕНИЯ",
+            description="Набор в штат вновь открыт! 🚀",
+            color=0xf1c40f
+        )
+        main_embed.set_footer(text="Horizon Project • Система набора в штат v1.0")
+        
+        await ctx.send(embed=main_embed)
+        self.is_active = True
+        
+        await asyncio.sleep(3)
+        await ctx.message.delete()
+
+async def setup(bot):
+    await bot.add_cog(Shtat(bot))
